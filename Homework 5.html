@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, translate=no">
+    <title>Homework 7</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color:rgb(116, 116, 116);
+        }
+        label{
+            font-family:monospace;
+            font-size: large;
+            padding-left: 25px;
+        }
+
+        input{
+            font-family:monospace;
+            font-size: large;
+            background-color: rgb(173, 173, 173);
+        }
+
+        option{
+            font-family:monospace;
+            font-size: large;
+        }
+
+        button{
+            font-family:monospace;
+            font-size: large;  
+        }
+        
+        canvas {
+            display: block;
+        }
+
+        #additionalInputs {
+        text-align: center; 
+        margin-top: 20px;    
+    }
+
+    #quoteContainer {
+        position: fixed; 
+        bottom: 0;
+        left: 20px;
+        z-index: 1000;
+    }
+
+    #tolkienImage {
+        width: 300px; 
+        height: 200px;
+    }
+    select {
+    background-color: #333;
+    color: #fff;
+    padding: 2px;
+    border-radius: 5px;
+    border: 1px solid #555;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+    font-family: Arial, sans-serif;
+    font-size: 16px;
+}
+
+select:hover {
+    background-color: #444;
+}
+
+select:focus {
+    outline: none;
+    box-shadow: 0 0 8px rgb(20, 196, 76);
+}
+
+
+    </style>
+</head>
+
+<body>
+    
+<h1 style="text-align: center; font-family: monospace; color: rgb(13, 113, 45);">Homework 7</h1>
+    <div style="padding-top: 20px; text-align: center;">
+        <label  for="M">#Systems: </label>
+        <input type="number" id="M" value="20">
+        <label for="N">#Days: </label>
+        <input type="number" id="N" value="100">
+        <label for="p">Drift: </label>
+        <input type="number" id="drift" value="0.05">
+        <label for="volat">Sigma(volatility): </label>
+        <input type="number" id="sigma" value="0.2">
+        
+
+
+        <br>
+        <br>
+        <label style="text-align: center;" for="stochasticProcess">Stochastic Process:</label>
+        <select id="stochasticProcess">
+            <option value="arithmeticBrownian">Arithmetic Brownian</option>
+            <option value="geometricBrownian">Geometric Brownian (Black–Scholes)</option>
+            <option value="ornsteinUhlenbeck">Ornstein–Uhlenbeck (mean-reverting)</option>
+            <option value="vasicek">Vasicek</option>
+            <option value="hullWhite">Hull–White</option>
+            <option value="coxIngersollRoss">Cox–Ingersoll–Ross</option>
+            <option value="blackKarasinski">Black–Karasinski</option>
+            <option value="lol">The Most Beautiful Process</option>
+        </select>
+        <button style="background-color: rgb(20, 196, 76);" onclick="simulate()">Simulate</button>
+    </div>
+
+    <div id="additionalInputs"></div>
+
+    <canvas id="myCanvas"></canvas>
+
+    <div id="quoteContainer">
+        <img src="Tolkien.png" alt="Tolkien Image" id="tolkienImage">
+        <p id="quoteText">"Not all those who wander are lost." - J.R.R. Tolkien</p>
+    </div>
+
+    <script src="blackKarasinski.js"></script>
+    <script src="CrossIngersolRoss.js"></script>
+    <script src="HullWhite.js"></script>
+    <script src="VasicekModel.js"></script>
+    <script src="Ornstein–Uhlenbeck.js"></script>
+    <script src="GeometricBrowian.js"></script>
+    <script src="ResizableRectangle.js"></script>
+    <script src="BrowinanMotion.js"></script>
+    
+    <script>
+        "use strict";
+
+const labelDateTime = document.getElementById("labelDateTime");
+const myCanvas = document.getElementById("myCanvas");
+const ctx = myCanvas.getContext("2d");
+
+const additionalInputsDiv = document.getElementById("additionalInputs");
+
+const inputM = document.getElementById("M");
+const inputN = document.getElementById("N");
+const inputDrift = document.getElementById("drift");
+const inputSigma = document.getElementById("sigma");
+const inputTheta = document.getElementById("theta");
+const inputMU = document.getElementById("mu");
+
+let simulating = false;
+
+myCanvas.style.width = '100%';
+myCanvas.style.height = '100%';
+myCanvas.width = window.innerWidth
+myCanvas.height = window.innerHeight;
+ctx.transform(1, 0, 0, -1, 0, myCanvas.height);
+
+window.addEventListener('resize', () => {
+    myCanvas.style.width = '100%';
+    myCanvas.style.height = '100%';
+    myCanvas.width = window.innerWidth
+    myCanvas.height = window.innerHeight;
+    ctx.transform(1, 0, 0, -1, 0, myCanvas.height);
+});
+
+
+const stochasticProcessSelect = document.getElementById("stochasticProcess");
+stochasticProcessSelect.addEventListener("change", updateAdditionalInputs);
+
+
+function createInput(id, labelText, defaultValue) {
+    let label = document.createElement("label");
+    label.innerHTML = labelText + ": ";
+    label.setAttribute("for", id);
+
+    let input = document.createElement("input");
+    input.type = "number";
+    input.id = id;
+    input.value = defaultValue; 
+
+    additionalInputsDiv.appendChild(label);
+    additionalInputsDiv.appendChild(input);
+}
+
+function updateAdditionalInputs() {
+    const selectedProcess = stochasticProcessSelect.value;
+    additionalInputsDiv.innerHTML = ''; //pulisci i vecchi input
+
+    if (selectedProcess === "ornsteinUhlenbeck") {
+        createInput("theta", "Theta (mean-reverting speed)", "0.9");
+        createInput("mu", "Mu (long-term mean)", "0.05");
+    } else if (selectedProcess === "vasicek") {
+        createInput("alpha", "Alpha (mean-reverting speed)", "2");
+        createInput("beta", "Beta (long-term mean)", "0.05");
+    }
+    if(selectedProcess === "hullWhite"){
+        createInput("alpha1", "Alpha (mean-reversion speed)", "0.05");
+        createInput("theta1", "Theta", "0.5");
+    }
+    if(selectedProcess === "coxIngersollRoss"){
+        createInput("alpha2", "Alpha (mean-reverting speed)", "1.5");
+        createInput("beta2", "Beta (long-term mean)", "0.03");
+    }
+    if(selectedProcess === "blackKarasinski"){
+        createInput("theta3", "Theta (mean-reverting speed)", "0.5");
+        createInput("phi", "Phi", "0.1");
+    }
+}
+
+
+ResizableRectangle.initialState.rectangle = new Rectangle(500, 200, 600, 500);
+ResizableRectangle.initialState.ctx = ctx;
+ResizableRectangle.initialState.outlineColor = "Black";
+ResizableRectangle.initialState.lineWidth = 1;
+ResizableRectangle.initialState.lineDash = [1, 1];
+
+const ResizableRectangle1 = new ResizableRectangle(ResizableRectangle.initialState);  
+
+
+let s1;
+
+function drawScene() {
+
+    ctx.clearRect(0, 0, myCanvas.width, myCanvas.height);
+
+    ResizableRectangle1.drawChart(s1);
+
+
+}
+
+const img = document.createElement('img');
+
+function simulate() {
+    const selectedProcess = document.getElementById("stochasticProcess").value;
+
+    if(selectedProcess === "lol"){
+        document.getElementById("myCanvas").style.display = 'none';
+
+        img.src = 'you.png';
+        img.style.width = "500px";
+        img.style.height = "500px";
+        img.style.display = 'block'; 
+        img.style.marginLeft = "500px";
+        additionalInputsDiv.appendChild(img);
+        document.body.appendChild(img)
+    }else{
+        document.getElementById("myCanvas").style.display = 'block'; 
+        img.style.display = "none";
+    switch(selectedProcess){
+        case "arithmeticBrownian":
+            s1 = new BrownianMotion(inputM.value*1, inputN.value*1, inputDrift.value*1, inputSigma.value*1, (val, i) => val);
+            break;
+
+        case "geometricBrownian":
+            s1 = new GeometricBrownianMotion(inputM.value*1, inputN.value*1, inputDrift.value*1, inputSigma.value*1, (val, i) => val);
+            break;
+        case "ornsteinUhlenbeck":
+            const theta = document.getElementById("theta");
+            const mu = document.getElementById("mu");
+            s1 = new OrnsteinUhlenbeckProcess(inputM.value*1, inputN.value*1, 70, theta.value*1, mu.value*1, (val, i) => val);
+            break;
+        case "vasicek":
+            const alpha = document.getElementById("alpha");
+            const beta = document.getElementById("beta");
+            s1 = new VasicekModel(inputM.value*1, inputN.value*1, alpha.value*1, beta.value*1, inputSigma.value*1, (val, i) => val);
+            break;
+        case "hullWhite":
+            const alpha2 = document.getElementById("alpha1");
+            const theta3 = document.getElementById("theta1");
+            s1 = new HullWhiteModel(inputM.value*1, inputN.value*1, alpha2.value*1, theta3.value*1, inputSigma.value*1, (val, i) => val);
+            break;
+        case "coxIngersollRoss":
+            const alpha3 = document.getElementById("alpha2");
+            const beta3 = document.getElementById("beta2");
+            s1 = new CoxIngersollRossModel(inputM.value*1, inputN.value*1, alpha3.value*1, beta3.value*1, inputSigma.value*1, (val, i) => val);
+            break;
+        case "blackKarasinski":
+            const theta2 = document.getElementById("theta3");
+            const phi = document.getElementById("phi");
+            s1 = new BlackKarasinskiModel(inputM.value*1, inputN.value*1, theta2.value*1, phi.value*1, inputSigma.value*1, (val, i) => val)
+            break;
+    }
+
+}
+    setInterval(drawScene, 5);
+
+}
+
+function relative(val, i){
+    if(i <= 0){
+        return val;
+    }
+    return val/i;
+}
+
+function normalize(val, i){
+    if(i <= 0){
+        return val;
+    }
+    return val/Math.sqrt(i);
+}
+    </script>
+    
+</body>
+
+</html>
